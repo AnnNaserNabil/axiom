@@ -1,84 +1,36 @@
-name: Deploy to GitHub Pages
+name: Deploy to Vercel
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-
-permissions:
-  contents: write
-  pages: write
-  id-token: write
+    branches: [main]
 
 jobs:
-  build:
+  Deploy-Preview:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch all history for tags
+      - uses: actions/checkout@v4
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Pull Vercel Environment Info
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build Project Artifacts
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Print environment info
-        run: |
-          echo "Node version: $(node -v)"
-          echo "NPM version: $(npm -v)"
-          echo "PNPM version: $(pnpm -v)"
-          echo "Git version: $(git --version)"
-          echo "Git branch: $(git branch --show-current)"
-          echo "Git remote: $(git remote -v)"
-          echo "Current directory: $(pwd)"
-          echo "Directory contents:"
-          ls -la
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        env:
-          NODE_ENV: production
-
-      - name: Print installed dependencies
-        run: pnpm list --depth=0
-
-      - name: Build
-        run: |
-          echo "=== Building the application ==="
-          pnpm run build
-          echo "=== Build completed ==="
-          echo "=== Build directory contents: ==="
-          ls -la dist/
-        env:
-          NODE_ENV: production
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist/
-          retention-days: 1
-
-  deploy:
-    needs: build
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  Production-Deploy:
+    needs: [Deploy-Preview]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Pull Vercel Environment Info
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
