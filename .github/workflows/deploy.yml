@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]  # Change this to your default branch if it's not 'main'
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -17,6 +17,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for tags
+
+      - name: Print environment info
+        run: |
+          echo "Node version: $(node -v)"
+          echo "NPM version: $(npm -v)"
+          echo "PNPM version: $(pnpm -v)"
+          echo "Git version: $(git --version)"
+          echo "Git branch: $(git branch --show-current)"
+          echo "Git remote: $(git remote -v)"
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
@@ -31,14 +45,27 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          NODE_ENV: production
+
+      - name: Print installed dependencies
+        run: pnpm list --depth=0
 
       - name: Build
-        run: pnpm run build
+        run: |
+          echo "=== Building the application ==="
+          pnpm run build
+          echo "=== Build completed ==="
+          echo "=== Build directory contents: ==="
+          ls -la dist/
+        env:
+          NODE_ENV: production
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist/
+          retention-days: 1
 
   deploy:
     needs: build
@@ -53,3 +80,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
